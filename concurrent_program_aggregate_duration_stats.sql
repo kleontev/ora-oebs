@@ -6,8 +6,19 @@ args as (
     'RU_RETROPAY' as concurrent_program_name
   from dual 
 ),
+programs_of_interest as (
+  -- aggregate duration for a specific request_id's program
+  select r1.program_application_id, r1.concurrent_program_id
+  from apps.fnd_concurrent_requests r1
+  where r1.request_id = (select args.request_id from args)
+  union all 
+  -- aggregate duration for specific program(s)
+  select cp1.application_id, cp1.concurrent_program_id 
+  from apps.fnd_concurrent_programs cp1
+  where cp1.concurrent_program_name like (select args.concurrent_program_name from args)
+),
 requests_of_interest as (
-  select
+  select --+ index(r(program_application_id, concurrent_program_id))
     r.request_date,
     cp.concurrent_program_name,
     r.request_id,
@@ -17,24 +28,16 @@ requests_of_interest as (
     trunc(r.request_date, 'q') as request_date_q,
     trunc(r.request_date, 'mm') as request_date_mm,
     r.actual_completion_date - r.actual_start_date as duration
-  from apps.fnd_concurrent_programs cp 
+  from programs_of_interest poi 
+  join apps.fnd_concurrent_programs cp on 1 = 1
+    and cp.application_id = poi.program_application_id 
+    and cp.concurrent_program_id = poi.concurrent_program_id
   join apps.fnd_concurrent_requests r on 1 = 1 
     and r.program_application_id = cp.application_id
     and r.concurrent_program_id = cp.concurrent_program_id
   where 1 = 1 
     and r.request_date >= add_months(trunc(sysdate, 'mm'), -12)
-    and r.phase_code = 'C' -- completed
-    and (cp.application_id, cp.concurrent_program_id) in (
-      -- aggregate duration for a specific request_id's program
-      select r1.program_application_id, r1.concurrent_program_id
-      from apps.fnd_concurrent_requests r1
-      where r1.request_id = (select args.request_id from args)
-      union all 
-      -- aggregate duration for specific program(s)
-      select cp1.application_id, cp1.concurrent_program_id 
-      from apps.fnd_concurrent_programs cp1
-      where cp1.concurrent_program_name like (select args.concurrent_program_name from args)
-    )          
+    and r.phase_code = 'C' -- completed    
 )
 select 
     r.concurrent_program_name,
