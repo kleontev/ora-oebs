@@ -55,7 +55,9 @@ select
     r.argument_text,    
     r.description as request_description,
     r.lfile_size, 
-    r.ofile_size
+    r.logfile_name,    
+    r.ofile_size, 
+    r.outfile_name
 from apps.fnd_concurrent_requests r
 join apps.fnd_concurrent_programs p on 1 = 1
     and p.application_id  = r.program_application_id
