@@ -47,6 +47,8 @@ data_awr as (
     )
   cross apply xmltable(
     '/ROWSET/ROW'
+    -- for some reason predicate pushdown (sid/serial) doesn't work for dba_histr_active_sess_history, 
+    -- unless predicates are specified as literals, so... I specify them as literals.
     passing dbms_xmlgen.getxmltype('
     select
       sample_id,
